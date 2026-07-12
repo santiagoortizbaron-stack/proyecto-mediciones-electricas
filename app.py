@@ -5,10 +5,7 @@ from datetime import datetime
 from io import BytesIO
 
 
-# ==========================
-# CONFIGURACIÓN
-# ==========================
-
+# Configuración de página
 st.set_page_config(
     page_title="Mediciones Eléctricas",
     page_icon="⚡",
@@ -16,29 +13,18 @@ st.set_page_config(
 )
 
 
-# ==========================
-# TÍTULO
-# ==========================
-
+# Título
 st.title("⚡ Sistema de Mediciones Eléctricas")
 st.subheader("Aplicación de números complejos en circuitos AC")
 
 
-# ==========================
-# MEMORIA DE DATOS
-# ==========================
-
+# Guardar datos mientras la página está abierta
 if "datos" not in st.session_state:
     st.session_state.datos = []
 
 
-
-# ==========================
-# TIPOS DE MEDICIÓN
-# ==========================
-
+# Tipos de medición
 tipos = [
-
     "Voltaje fase-neutro (V)",
     "Voltaje fase-fase (V)",
     "Corriente fase A (A)",
@@ -54,13 +40,10 @@ tipos = [
     "Frecuencia (Hz)",
     "Energía (kWh)",
     "Factor de potencia"
-
 ]
 
 
-# ==========================
-# ENTRADAS
-# ==========================
+# Entrada de datos
 
 col1, col2 = st.columns(2)
 
@@ -72,37 +55,32 @@ with col1:
         tipos
     )
 
-
     valor = st.number_input(
-        "Ingrese el valor medido",
-        value=0.0
+        "Valor medido",
+        min_value=0.0,
+        format="%.2f"
     )
 
 
 with col2:
 
-    angulo_texto = st.text_input(
+    angulo = st.text_input(
         "Ángulo (opcional)",
         placeholder="Ejemplo: 30"
     )
 
 
-# ==========================
-# CALCULO COMPLEJO
-# ==========================
+# Agregar medición
 
 if st.button("➕ Agregar medición"):
 
-
-    if angulo_texto == "":
-        angulo = 0
-
+    if angulo.strip() == "":
+        ang = 0
     else:
-        angulo = float(angulo_texto)
+        ang = float(angulo)
 
 
-
-    rad = math.radians(angulo)
+    rad = math.radians(ang)
 
 
     real = valor * math.cos(rad)
@@ -110,83 +88,57 @@ if st.button("➕ Agregar medición"):
     imaginaria = valor * math.sin(rad)
 
 
-
-    if imaginaria >= 0:
-
-        complejo = (
-            f"{real:.2f} + j{imaginaria:.2f}"
-        )
-
-    else:
-
-        complejo = (
-            f"{real:.2f} - j{abs(imaginaria):.2f}"
-        )
+    complejo = (
+        f"{real:.2f} + j{imaginaria:.2f}"
+        if imaginaria >= 0
+        else
+        f"{real:.2f} - j{abs(imaginaria):.2f}"
+    )
 
 
-
-    registro = {
+    nueva_medicion = {
 
         "Fecha":
         datetime.now().strftime("%d/%m/%Y"),
 
-
         "Hora":
         datetime.now().strftime("%H:%M:%S"),
-
 
         "Tipo":
         tipo,
 
-
         "Valor":
         valor,
 
-
-        "Ángulo (°)":
-        angulo,
-
+        "Angulo (°)":
+        ang,
 
         "Parte Real":
         round(real,2),
 
-
         "Parte Imaginaria":
         round(imaginaria,2),
 
-
-        "Número Complejo":
+        "Numero Complejo":
         complejo
-
     }
 
 
-    st.session_state.datos.append(registro)
+    st.session_state.datos.append(nueva_medicion)
+
+    st.success("Medición agregada")
 
 
-
-    st.success(
-        "Medición agregada correctamente"
-    )
-
-
-
-# ==========================
-# MOSTRAR TABLA
-# ==========================
+# Tabla
 
 st.divider()
 
-st.subheader("📋 Registro de mediciones")
+st.subheader("📋 Mediciones registradas")
 
 
 if len(st.session_state.datos) > 0:
 
-
-    df = pd.DataFrame(
-        st.session_state.datos
-    )
-
+    df = pd.DataFrame(st.session_state.datos)
 
     st.dataframe(
         df,
@@ -196,69 +148,45 @@ if len(st.session_state.datos) > 0:
 
 else:
 
-    st.info(
-        "No existen mediciones registradas"
+    st.info("No hay mediciones")
+
+
+# Limpiar
+
+if st.button("🗑️ Limpiar tabla"):
+
+    st.session_state.datos = []
+
+    st.rerun()
+
+
+
+# Descargar Excel
+
+st.divider()
+
+if len(st.session_state.datos) > 0:
+
+    df = pd.DataFrame(st.session_state.datos)
+
+    archivo = BytesIO()
+
+    df.to_excel(
+        archivo,
+        index=False
     )
 
+    archivo.seek(0)
 
 
-# ==========================
-# BOTONES
-# ==========================
+    st.download_button(
 
-col3, col4 = st.columns(2)
+        label="📥 Descargar Excel",
 
+        data=archivo,
 
+        file_name="Mediciones_Electricas.xlsx",
 
-with col3:
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-    if st.button("🗑️ Limpiar tabla"):
-
-        st.session_state.datos = []
-
-        st.success(
-            "Tabla limpiada"
-        )
-
-        st.rerun()
-
-
-
-with col4:
-
-
-    if len(st.session_state.datos) > 0:
-
-
-        df = pd.DataFrame(
-            st.session_state.datos
-        )
-
-
-        archivo = BytesIO()
-
-
-        with pd.ExcelWriter(
-            archivo,
-            engine="openpyxl"
-        ) as writer:
-
-            df.to_excel(
-                writer,
-                index=False,
-                sheet_name="Mediciones"
-            )
-
-
-
-        st.download_button(
-
-            label="📥 Descargar Excel",
-
-            data=archivo.getvalue(),
-
-            file_name="Mediciones_Electricas.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-        )
+    )
